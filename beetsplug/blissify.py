@@ -39,7 +39,7 @@ def analyse_library(lib: Library, opts, args):
         item.bliss_data = bliss_data
         item.store()
 
-        print(f"analysed: {song.title} from {song.album} by {song.artist}")
+        print(f"Analysed: {song.title} from {song.album} by {song.artist}")
 
 
 def select_song(results, page_size=10):
