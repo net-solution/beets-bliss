@@ -2,10 +2,12 @@
 blissify-rs.
 """
 
+import pickle
+
 import numpy as np
 from beets.library import Library
 from beets.plugins import BeetsPlugin
-from beets.ui import Subcommand, decargs, input_options, input_yn
+from beets.ui import Subcommand, UserError, decargs, input_options, input_yn
 from bliss_audio import Song
 from scipy.spatial import KDTree
 
@@ -91,6 +93,38 @@ def save_kdtree(tree, filepath):
         pickle.dump(tree, f)
 
 
+def get_nearest_songs(tree, query_vector, song_ids, k, threshold):
+    nearest_songs = []
+    offset = 0  # offset for already processed indices
+    max_requested = k
+
+    if threshold:  # get a few more results if using threshold
+        k = int(k * 1.5)
+
+    # but still using while loop, in case we didnt get enough extra
+    while len(nearest_songs) < max_requested:
+        distances, indices = tree.query(query_vector, k=k + offset, workers=-1)
+
+        # skip the already processed songs
+        indices = indices[offset:]
+        distances = distances[offset:]
+
+        new_songs = [
+            (song_ids[idx], distances[i])
+            for i, idx in enumerate(indices)
+            if distances[i] > threshold
+        ]
+
+        nearest_songs.extend(new_songs)
+        offset += k
+
+        # exit if we exhaust all neighbors
+        if len(indices) == 0:
+            break
+
+    return nearest_songs[:max_requested]
+
+
 def generate_playlist(lib: Library, opts, args):
     """Generate a playlist of similar songs."""
     if opts.compare:
@@ -122,6 +156,7 @@ def generate_playlist(lib: Library, opts, args):
 
     music_library = lib.items()
     try:
+        seed_analysis = seed_song.bliss_data.split(r"\␀")
         song_analysis = [
             np.array(s.bliss_data.split(r"\␀"), dtype=float)
             for s in music_library
@@ -136,11 +171,9 @@ def generate_playlist(lib: Library, opts, args):
     # Build KDTree
     tree = KDTree(song_analysis)
 
-    distances, indices = tree.query(
-        seed_song.bliss_data.split(r"\␀"), k=10, workers=-1
+    nearest_songs = get_nearest_songs(
+        tree, seed_analysis, song_ids, opts.count, opts.threshold
     )
-
-    nearest_songs = zip((song_ids[idx] for idx in indices), distances)
 
     print("\nNearest songs:")
     for song_id, distance in nearest_songs:
@@ -175,6 +208,13 @@ class BlissifyPlugin(BeetsPlugin):
             type="float",
             default=0.5,
             help="make playlist with closest song to all previous songs",
+        )
+        blissify.parser.add_option(
+            "-t",
+            "--threshold",
+            type="float",
+            default=0.01,
+            help="only include songs above the distance threshold",
         )
         blissify.parser.add_option(
             "-s",
