@@ -52,15 +52,19 @@ def select_song(results, page_size=10):
 
         print(f"\nPage {current_page+1} of {total_pages}")
         for i, item in enumerate(results[start:end], start=start):
-
-        choice = input_options(
-            "npq",
-            numrange=(start + 1, end),
-            default=start + 1,
-            prompt="\nEnter a number to select a song, or [N]ext page, [P]revious page, [Q]uit\nChoice:",
-        )
             item_id = f"[ID: {item.id:_>6}]"
             print(f"{i + 1}: {item.artist} - {item.title} {item_id:>18}")
+
+        if len(results) > 1:
+            print("\nEnter a number to choose a song, or pick an option")
+            choice = input_options(
+                "npq",
+                numrange=(start + 1, end),
+                default=start + 1,
+                prompt=f"[N]ext page, [P]revious page, [Q]uit, ({start+1}-{end}):",
+            )
+        else:
+            choice = 1
 
         if isinstance(choice, int) and start + 1 <= choice <= end:
             result_index = choice - 1
