@@ -25,6 +25,9 @@ from scipy.spatial import KDTree
 
 def analyse_library(lib: Library, opts, args):
     """Analyse beets library with bliss"""
+class PassthruParser(OptionParser):
+    def parse_args(self, args=None, values=None):
+        return self, args
 
     for item in lib.items():
         song_path = item.path.decode("utf-8")
@@ -188,55 +191,90 @@ class BlissifyPlugin(BeetsPlugin):
         super().__init__()
 
     def commands(self):
-        blissify_scan = Subcommand(
-            "bliss_scan",
-            help="analyse the music library with bliss",
+        bliss_cmd = Subcommand(
+            "bliss", help="run bliss subcommands", parser=PassthruParser()
         )
-        blissify_scan.parser.add_option(
-            "--force",
-            help="re-analyse all songs, overwriting existing data",
-        )
-        blissify_scan.func = analyse_library
+        bliss_cmd.func = self.bliss_handler
 
-        blissify = Subcommand(
-            "blissify",
-            help="create playlist with bliss",
+        return [bliss_cmd]
+
+    def bliss_handler(self, lib, opts, args):
+        if not args:
+            raise UserError("Usage: beet bliss <subcommand> [options]")
+
+        args = decargs(args)
+        subcommand = args[0]
+        subcommand_args = args[1:]
+
+        match subcommand:
+            case "scan":
+                self.bliss_scan(lib, subcommand_args)
+            case "playlist":
+                self.bliss_playlist(lib, subcommand_args)
+            case _:
+                raise UserError(f"Unknown subcommand: {subcommand}")
+
+    def bliss_scan(self, lib, args):
+        parser = OptionParser(
+            usage="beet bliss scan [options]",
+            description="analyse the beets library with bliss",
         )
-        blissify.parser.add_option(
+        parser.add_option(
+            "-f",
+            "--force",
+            action="store_true",
+            default=False,
+            help="re-analyse all files, overwriting existing data",
+        )
+        opts, _ = parser.parse_args(args)
+
+        self.analyse_library(lib, opts)
+
+    def bliss_playlist(self, lib, args):
+        parser = OptionParser(
+            usage="beet bliss playlist [options] <query>",
+            description="create playlist with bliss",
+        )
+        parser.add_option(
             "-d",
             "--distance",
             type="float",
             default=0.5,
             help="make playlist with closest song to all previous songs",
         )
-        blissify.parser.add_option(
-            "-t",
-            "--threshold",
-            type="float",
-            default=0.01,
-            help="only include songs above the distance threshold",
-        )
-        blissify.parser.add_option(
+        # parser.add_option(
+        #     "-t",
+        #     "--threshold",
+        #     type="float",
+        #     default=0.01,
+        #     help="only include songs above the distance threshold",
+        # )
+        parser.add_option(
             "-s",
             "--seed",
             action="store_true",
             default=False,
             help="make playlist with closest song to all previous songs",
         )
-        blissify.parser.add_option(
+        parser.add_option(
             "-n",
             "--count",
             type="int",
             default=32,
             help="number of songs to make the playlist",
         )
-        blissify.parser.add_option(
+        parser.add_option(
             "-c",
             "--compare",
             action="store_true",
             default=False,
             help="get distance between two songs, nothing more or less",
         )
-        blissify.func = generate_playlist
+        parser.add_option(
+            "--query",
+            default="",
+            help='query the music library before making playlist (e.g. "^christmas")',
+        )
+        opts, sub_args = parser.parse_args(args)
+        self.generate_playlist(lib, opts, sub_args)
 
-        return [blissify_scan, blissify]
