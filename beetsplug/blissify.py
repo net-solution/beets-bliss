@@ -156,7 +156,7 @@ class BlissifyPlugin(BeetsPlugin):
 
     def commands(self):
         blissify_scan = Subcommand(
-            "blissify_scan",
+            "bliss_scan",
             help="analyse the music library with bliss",
         )
         blissify_scan.parser.add_option(
@@ -170,22 +170,30 @@ class BlissifyPlugin(BeetsPlugin):
             help="create playlist with bliss",
         )
         blissify.parser.add_option(
+            "-d",
             "--distance",
+            type="float",
             default=0.5,
             help="make playlist with closest song to all previous songs",
         )
         blissify.parser.add_option(
+            "-s",
             "--seed",
+            action="store_true",
             default=False,
             help="make playlist with closest song to all previous songs",
         )
         blissify.parser.add_option(
+            "-n",
             "--count",
+            type="int",
             default=32,
-            help="size of playlist",
+            help="number of songs to make the playlist",
         )
         blissify.parser.add_option(
+            "-c",
             "--compare",
+            action="store_true",
             default=False,
             help="get distance between two songs, nothing more or less",
         )
