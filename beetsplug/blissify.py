@@ -70,7 +70,7 @@ def select_song(results, page_size=10):
             result_index = choice - 1
 
             selection = results[result_index]
-            print(f"Selected: {selection.artist} - {selection.title}")
+            print(f"\nSelected: {selection.artist} - {selection.title}")
             confirm = input_yn("Are you sure? [Y/n]:")
 
             if confirm:
