@@ -106,13 +106,6 @@ class BlissifyPlugin(BeetsPlugin):
             default=0.5,
             help="make playlist with closest song to all previous songs",
         )
-        # parser.add_option(
-        #     "-t",
-        #     "--threshold",
-        #     type="float",
-        #     default=0.01,
-        #     help="only include songs above the distance threshold",
-        # )
         parser.add_option(
             "-s",
             "--seed",
@@ -126,13 +119,6 @@ class BlissifyPlugin(BeetsPlugin):
             type="int",
             default=32,
             help="number of songs to make the playlist",
-        )
-        parser.add_option(
-            "-c",
-            "--compare",
-            action="store_true",
-            default=False,
-            help="get distance between two songs, nothing more or less",
         )
         parser.add_option(
             "--query",
@@ -197,7 +183,7 @@ class BlissifyPlugin(BeetsPlugin):
             start = current_page * page_size
             end = min(start + page_size, len(results))
 
-            print(f"\nPage {current_page+1} of {total_pages}")
+            print(f"\nPage {current_page + 1} of {total_pages}")
             for i, item in enumerate(results[start:end], start=start):
                 item_id = f"[ID: {item.id:_>6}]"
                 print(
@@ -210,7 +196,7 @@ class BlissifyPlugin(BeetsPlugin):
                     "npq",
                     numrange=(start + 1, end),
                     default=start + 1,
-                    prompt=f"[N]ext page, [P]revious page, [Q]uit, ({start+1}-{end}):",
+                    prompt=f"[N]ext page, [P]revious page, [Q]uit, ({start + 1}-{end}):",
                 )
             else:
                 choice = 1
@@ -271,28 +257,21 @@ class BlissifyPlugin(BeetsPlugin):
 
         return nearest_songs[:max_requested]
 
+    def compare_songs(self, lib, opts, args):
+        results = list(lib.items(input("Enter a query: ")))
+        song1 = self.select_song(results, page_size=6)
+        results = list(lib.items(input("Enter a query: ")))
+        song2 = self.select_song(results, page_size=6)
+
+        if song1 is not None and song2 is not None:
+            song1_data = np.array(song1.bliss_data.split(r"\␀"), dtype=float)
+            song2_data = np.array(song2.bliss_data.split(r"\␀"), dtype=float)
+            distance = np.linalg.norm(song1_data - song2_data)
+
+            print(f"Distance between songs: {distance}")
+
     def generate_playlist(self, lib: Library, opts, args):
         """Generate a playlist of similar songs."""
-
-        if opts.compare:
-            results = list(lib.items(input("Enter a query: ")))
-            song1 = self.select_song(results, page_size=6)
-            results = list(lib.items(input("Enter a query: ")))
-            song2 = self.select_song(results, page_size=6)
-
-            if song1 is not None and song2 is not None:
-                song1_data = np.array(
-                    song1.bliss_data.split(r"\␀"), dtype=float
-                )
-                print(song1_data)
-                song2_data = np.array(
-                    song2.bliss_data.split(r"\␀"), dtype=float
-                )
-                distance = np.linalg.norm(song1_data - song2_data)
-
-                print(f"Distance between songs: {distance}")
-                return
-
         query = decargs(args)
 
         results = list(lib.items(query))
