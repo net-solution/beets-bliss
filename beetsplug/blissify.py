@@ -3,7 +3,7 @@ blissify-rs.
 """
 
 import pickle
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from optparse import OptionParser
 
 import numpy as np
@@ -127,39 +127,16 @@ class BlissifyPlugin(BeetsPlugin):
         opts, sub_args = parser.parse_args(args)
         self.generate_playlist(lib, opts, sub_args)
 
-    # def _analyse_item(self, item):
-    #
-    #     song_path = item.path.decode("utf-8")
-    #     song = Song(song_path)
-    #
-    #     return r"\␀".join(map(str, song.analysis))
-    #
-    # def analyse_library_threads(self, lib: Library, opts):
-    #     """Analyse beets library with bliss"""
-    #
-    #     to_analyse = [
-    #         (item.id, item.path.decode("utf-8"))
-    #         for item in lib.items()
-    #         if opts.force
-    #         or not hasattr(item, "bliss_data")
-    #         or len(item.bliss_data.split(r"\␀")) != 20
-    #     ]
-    #     with ThreadPoolExecutor(max_workers=self.MAX_WORKERS) as executor:
-    #         results = list(tqdm(executor.map(self._analyse_item, to_analyse), total=len(to_analyse)))
-    #
-    #         for item in tqdm(library, total=len(library)):
-    #             bliss_data = executor.submit(self._get_bliss_data, item)
-    #
-    #             item.bliss_data = bliss_data.result()
-    #             item.store()
-
-    def _get_bliss_data(self, item):
-        song_path = item.path.decode("utf-8")
-        song = Song(song_path)
-
-        return r"\␀".join(map(str, song.analysis))
+    def bliss_compare(self, lib, args):
+        parser = OptionParser(
+            usage=f"beet bliss {BlissCommand.COMPARE} [options] <query>",
+            description="calculate distance between two songs, with bliss",
+        )
+        opts, sub_args = parser.parse_args(args)
+        self.compare_songs(lib, opts, sub_args)
 
     def _compute_bliss_data(self, args):
+        """Compute bliss data for given path."""
         song_id, song_path = args
         song = Song(song_path)
         bliss_data = r"\␀".join(map(str, song.analysis))
@@ -167,6 +144,7 @@ class BlissifyPlugin(BeetsPlugin):
         return song_id, bliss_data
 
     def _store_bliss_data(self, lib: Library, item_id: int, bliss_data: str):
+        """Store computed bliss data to the beets database."""
         item = lib.get_item(item_id)
         item.bliss_data = bliss_data
         item.store()
@@ -174,38 +152,27 @@ class BlissifyPlugin(BeetsPlugin):
     def analyse_library(self, lib: Library, opts):
         """Analyse beets library with bliss."""
 
-        library = lib.items()
-        compute_args = [
+        print("Analysing library...")
+
+        tasks = [
             (item.id, item.path.decode("utf-8"))
-            for item in library
+            for item in lib.items()
             if opts.force
             or not hasattr(item, "bliss_data")
             or len(item.bliss_data.split(r"\␀")) != 20
         ]
 
-        # Compute bliss data
-        print("Analysing songs...")
+        if not tasks:
+            print("Library up-to-date!")
+            return
+
         with ProcessPoolExecutor() as executor:
-            results = list(
-                tqdm(
-                    executor.map(self._compute_bliss_data, compute_args),
-                    total=len(compute_args),
-                )
-            )
+            for item_id, bliss_data in tqdm(
+                executor.map(self._compute_bliss_data, tasks), total=len(tasks)
+            ):
+                self._store_bliss_data(lib, item_id, bliss_data)
 
-        # Store results to database
-        print("Storing results...")
-        with ThreadPoolExecutor() as executor:
-            futures = [
-                executor.submit(
-                    self._store_bliss_data, lib, item_id, bliss_data
-                )
-                for item_id, bliss_data in results
-            ]
-            for future in tqdm(futures, total=len(futures)):
-                future.result()
-
-        return results
+        print("Analysis complete!")
 
     def select_song(self, results, page_size=10):
         current_page = 0
