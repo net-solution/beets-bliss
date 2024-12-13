@@ -108,8 +108,6 @@ def generate_playlist(lib: Library, opts, args):
             print(f"Distance between songs: {distance}")
             return
 
-    playlist = []
-
     query = decargs(args)
 
     results = list(lib.items(query))
