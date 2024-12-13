@@ -4,6 +4,7 @@ blissify-rs.
 
 import pickle
 from concurrent.futures import ProcessPoolExecutor
+from enum import Enum
 from optparse import OptionParser
 
 import numpy as np
@@ -31,10 +32,17 @@ class PassthruParser(OptionParser):
         return self, args
 
 
+class BlissCommand(Enum):
+    SCAN = "scan"
+    PLAYLIST = "playlist"
+    COMPARE = "compare"
+
+    def __str__(self):
+        return str(self.value)
+
+
 class BlissifyPlugin(BeetsPlugin):
     """Blissify plugin for Beets."""
-
-    MAX_WORKERS = None
 
     def __init__(self):
         super().__init__()
@@ -49,23 +57,30 @@ class BlissifyPlugin(BeetsPlugin):
 
     def bliss_handler(self, lib, opts, args):
         if not args:
-            raise UserError("Usage: beet bliss <subcommand> [options]")
+            raise UserError(f"""\
+    Usage: beet bliss <subcommand> [options]
+                
+    Available subcommands:
+    \t{"\n\t".join(str(cmd) for cmd in BlissCommand)}
+""")
 
         args = decargs(args)
         subcommand = args[0]
         subcommand_args = args[1:]
 
         match subcommand:
-            case "scan":
+            case BlissCommand.SCAN:
                 self.bliss_scan(lib, subcommand_args)
-            case "playlist":
+            case BlissCommand.PLAYLIST:
                 self.bliss_playlist(lib, subcommand_args)
+            case BlissCommand.COMPARE:
+                self.bliss_compare(lib, subcommand_args)
             case _:
                 raise UserError(f"Unknown subcommand: {subcommand}")
 
     def bliss_scan(self, lib, args):
         parser = OptionParser(
-            usage="beet bliss scan [options]",
+            usage=f"beet bliss {BlissCommand.SCAN} [options]",
             description="analyse the beets library with bliss",
         )
         parser.add_option(
@@ -81,7 +96,7 @@ class BlissifyPlugin(BeetsPlugin):
 
     def bliss_playlist(self, lib, args):
         parser = OptionParser(
-            usage="beet bliss playlist [options] <query>",
+            usage=f"beet bliss {BlissCommand.PLAYLIST} [options] <query>",
             description="create playlist with bliss",
         )
         parser.add_option(
