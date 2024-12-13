@@ -115,40 +115,39 @@ def generate_playlist(lib: Library, opts, args):
         print("No matching songs found!")
         return
 
-    song = select_song(results, page_size=6)
-    if song is None:
+    seed_song = select_song(results, page_size=6)
+    if seed_song is None:
         print("Good bye")
         return
 
-    def get_bliss_data(item):
-        if not hasattr(item, "bliss_data"):
-            print("Item has no bliss data! Have you analysed the library?")
-            return None
-        # return np.array(item.bliss_data.split("\\␀"), dtype=float)
-        return item.bliss_data.split(r"\␀")
+    music_library = lib.items()
+    try:
+        song_analysis = [
+            np.array(s.bliss_data.split(r"\␀"), dtype=float)
+            for s in music_library
+        ]
+    except AttributeError:
+        print("ERROR: Missing bliss data, please (re)analyse the library!")
+        return None
 
-    song_analysis = [
-        np.array(s.bliss_data.split(r"\␀"), dtype=float) for s in lib.items()
-    ]
+    # Store song ids in same order as analysis vectors
+    song_ids = [s.id for s in music_library]
 
+    # Build KDTree
     tree = KDTree(song_analysis)
 
-    distances, indices = tree.query(song.bliss_data.split(r"\␀"), k=10)
-    print("Nearest songs:")
-    for dist, idx in zip(distances, indices):
-        similar_song = lib.items(f"id:{idx}")[0]
-        print(f"Song {similar_song.title} with distance {dist:.3f}")
+    distances, indices = tree.query(
+        seed_song.bliss_data.split(r"\␀"), k=10, workers=-1
+    )
+
+    nearest_songs = zip((song_ids[idx] for idx in indices), distances)
+
+    print("\nNearest songs:")
+    for song_id, distance in nearest_songs:
+        song = lib.get_item(song_id)
+        print(f"  * {song.artist:40} - {song.title:50} (dist: {distance:.3f})")
 
     return
-    initial_bliss_data = get_bliss_data(song)
-
-    for item in lib.items():
-        print(f"retrieving data for track: {item.title}")
-        bliss_data = get_bliss_data(item)
-
-        distance = np.linalg.norm(initial_bliss_data - bliss_data)
-
-        break
 
 
 class BlissifyPlugin(BeetsPlugin):
