@@ -143,7 +143,7 @@ class BlissifyPlugin(BeetsPlugin):
         parser.add_option(
             "--query",
             default="",
-            help='query the music library before making playlist (e.g. "^christmas")',
+            help=r'query the music library before making playlist (e.g. "^christmas")',
         )
         parser.add_option(
             "-v",
