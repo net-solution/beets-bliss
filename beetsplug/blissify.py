@@ -112,13 +112,6 @@ class BlissifyPlugin(BeetsPlugin):
             description=BlissCommand.PLAYLIST.desc,
         )
         parser.add_option(
-            "-r",
-            "--randomness",
-            type="float",
-            default=0.1,
-            help="amount of weighted randomness",
-        )
-        parser.add_option(
             "-q",
             "--quiet",
             action="store_true",
@@ -126,11 +119,19 @@ class BlissifyPlugin(BeetsPlugin):
             help="quiet mode, don't ask for any input",
         )
         parser.add_option(
-            "-s",
-            "--seed",
+            "-w",
+            "--walk",
             action="store_true",
             default=False,
-            help="make playlist with closest song to all previous songs",
+            help="find nearest song for each song we add\
+            (walk through the similar songs)",
+        )
+        parser.add_option(
+            "-r",
+            "--randomness",
+            type="float",
+            default=0.1,
+            help="amount of weighted randomness",
         )
         parser.add_option(
             "-n",
@@ -314,6 +315,59 @@ class BlissifyPlugin(BeetsPlugin):
 
         return nearest_songs
 
+    def _random_walk_playlist(self, tree: KDTree, seed_vector, k, explore, rng):
+        playlist = []
+        current_vector = seed_vector
+
+        def jump_to_song(tree):
+            random_index = np.random.choice(tree.n)
+            random_distance = np.linalg.norm(
+                current_vector - tree.data[random_index]
+            )
+            playlist.append((random_index, random_distance))
+
+            return tree.data[random_index]
+
+        for _ in range(k):
+            if np.random.rand() < explore:
+                # Jump to a completely random song
+                current_vector = jump_to_song(tree)
+            else:
+                distances, indices = tree.query(
+                    current_vector, k=k * 3, workers=-1
+                )
+                unique_indices, unique_distances = self._deduplicate_mask(
+                    distances, indices
+                )
+                valid_pairs = [
+                    (idx, dist)
+                    for idx, dist in zip(unique_indices, unique_distances)
+                    if idx not in [p[0] for p in playlist]
+                ]
+                if not valid_pairs:
+                    current_vector = jump_to_song(tree)
+                    continue
+
+                valid_indices, valid_distances = zip(*valid_pairs)
+
+                if rng:
+                    weights = 1 / (np.array(valid_distances) + 1e-5)
+                    weights /= weights.sum()
+                    weighted_index = np.random.choice(
+                        len(valid_indices), p=weights
+                    )
+                else:
+                    # take second index, as first is the query vector
+                    weighted_index = 1
+
+                chosen_index = valid_indices[weighted_index]
+                chosen_distance = valid_distances[weighted_index]
+                current_vector = tree.data[chosen_index]
+
+                playlist.append((chosen_index, chosen_distance))
+
+        return playlist
+
     def _generate_playlist(self, lib: Library, opts, args):
         """Generate a playlist of similar songs."""
         query = decargs(args)
@@ -355,9 +409,18 @@ class BlissifyPlugin(BeetsPlugin):
         # Build KDTree
         tree = KDTree(song_analysis)
 
-        nearest_songs = self.get_nearest_songs(
-            tree, seed_analysis, song_ids, opts.count
-        )
+        if opts.walk:
+            nearest_songs = self._random_walk_playlist(
+                tree,
+                seed_analysis,
+                opts.count,
+                opts.randomness,
+                bool(opts.randomness),
+            )
+        else:
+            nearest_songs = self._get_nearest_songs(
+                tree, seed_analysis, opts.count, opts.randomness
+            )
 
         filename = "nearest_songs.txt"
         with open(filename, "w") as file:
