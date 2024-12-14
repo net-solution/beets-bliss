@@ -104,7 +104,7 @@ class BlissifyPlugin(BeetsPlugin):
         )
         opts, _ = parser.parse_args(args)
 
-        self.analyse_library(lib, opts)
+        self._analyse_library(lib, opts)
 
     def bliss_playlist(self, lib, args):
         parser = OptionParser(
@@ -152,7 +152,7 @@ class BlissifyPlugin(BeetsPlugin):
             help="verbose output",
         )
         opts, sub_args = parser.parse_args(args)
-        self.generate_playlist(lib, opts, sub_args)
+        self._generate_playlist(lib, opts, sub_args)
 
     def bliss_compare(self, lib, args):
         parser = OptionParser(
@@ -160,7 +160,20 @@ class BlissifyPlugin(BeetsPlugin):
             description=BlissCommand.COMPARE.desc,
         )
         opts, sub_args = parser.parse_args(args)
-        self.compare_songs(lib, opts, sub_args)
+        self._compare_songs(lib, opts, sub_args)
+
+    def _compare_songs(self, lib, opts, args):
+        results = list(lib.items(input("Query for first song: ")))
+        song1 = self._select_song(results, page_size=6)
+        results = list(lib.items(input("\nQuery for second song: ")))
+        song2 = self._select_song(results, page_size=6)
+
+        if song1 is not None and song2 is not None:
+            song1_data = np.array(song1.bliss_data.split(r"\␀"), dtype=float)
+            song2_data = np.array(song2.bliss_data.split(r"\␀"), dtype=float)
+            distance = np.linalg.norm(song1_data - song2_data)
+
+            print(f"Distance between songs: {distance}")
 
     def _compute_bliss_data(self, args):
         """Compute bliss data for given path."""
@@ -176,7 +189,7 @@ class BlissifyPlugin(BeetsPlugin):
         item.bliss_data = bliss_data
         item.store()
 
-    def analyse_library(self, lib: Library, opts):
+    def _analyse_library(self, lib: Library, opts):
         """Analyse beets library with bliss."""
 
         print("Analysing library...")
@@ -201,7 +214,7 @@ class BlissifyPlugin(BeetsPlugin):
 
         print("Analysis complete!")
 
-    def select_song(self, results, page_size=10):
+    def _select_song(self, results, page_size=10):
         current_page = 0
         total_pages = (len(results) + page_size - 1) // page_size
 
@@ -279,20 +292,8 @@ class BlissifyPlugin(BeetsPlugin):
 
         return nearest_songs[:k]
 
-    def compare_songs(self, lib, opts, args):
-        results = list(lib.items(input("Query for first song: ")))
-        song1 = self.select_song(results, page_size=6)
-        results = list(lib.items(input("\nQuery for second song: ")))
-        song2 = self.select_song(results, page_size=6)
 
-        if song1 is not None and song2 is not None:
-            song1_data = np.array(song1.bliss_data.split(r"\␀"), dtype=float)
-            song2_data = np.array(song2.bliss_data.split(r"\␀"), dtype=float)
-            distance = np.linalg.norm(song1_data - song2_data)
-
-            print(f"Distance between songs: {distance}")
-
-    def generate_playlist(self, lib: Library, opts, args):
+    def _generate_playlist(self, lib: Library, opts, args):
         """Generate a playlist of similar songs."""
         query = decargs(args)
 
@@ -304,7 +305,7 @@ class BlissifyPlugin(BeetsPlugin):
         if opts.quiet:
             seed_song = results[0]
         else:
-            seed_song = self.select_song(results, page_size=6)
+            seed_song = self._select_song(results, page_size=6)
             if seed_song is None:
                 return
 
