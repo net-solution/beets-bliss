@@ -112,11 +112,11 @@ Available subcommands:
             description=BlissCommand.PLAYLIST.desc,
         )
         parser.add_option(
-            "-d",
-            "--distance",
+            "-r",
+            "--randomness",
             type="float",
-            default=0.5,
-            help="make playlist with closest song to all previous songs",
+            default=0.1,
+            help="amount of weighted randomness",
         )
         parser.add_option(
             "-s",
@@ -298,7 +298,6 @@ Available subcommands:
 
         music_library = lib.items()
         try:
-            seed_analysis = seed_song.bliss_data.split(r"\␀")
             song_analysis = [
                 np.array(s.bliss_data.split(r"\␀"), dtype=float)
                 for s in music_library
@@ -306,6 +305,16 @@ Available subcommands:
         except AttributeError:
             print("ERROR: Missing bliss data, please (re)analyse the library!")
             return None
+
+        rng = np.random.default_rng()
+
+        # get data of seed song separately, slight PERTURBance
+        seed_analysis = np.array(seed_song.bliss_data.split(r"\␀"), dtype=float)
+
+        sigma = opts.randomness
+        seed_analysis = seed_analysis + np.random.normal(
+            0, sigma, size=seed_analysis.shape
+        )
 
         # Store song ids in same order as analysis vectors
         song_ids = np.array([s.id for s in music_library])
