@@ -262,6 +262,14 @@ Available subcommands:
             distances, indices
         )
 
+        # nearest_songs = [
+        #     (song_ids[idx], unique_distances[i])
+        #     for i, idx in enumerate(unique_indices)
+        # ]
+        nearest_songs = np.column_stack((
+            song_ids[unique_indices],
+            unique_distances,
+        ))
 
         return nearest_songs[:k]
 
@@ -304,7 +312,7 @@ Available subcommands:
             return None
 
         # Store song ids in same order as analysis vectors
-        song_ids = [s.id for s in music_library]
+        song_ids = np.array([s.id for s in music_library])
 
         # Build KDTree
         tree = KDTree(song_analysis)
