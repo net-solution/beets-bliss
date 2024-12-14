@@ -33,12 +33,23 @@ class PassthruParser(OptionParser):
 
 
 class BlissCommand(Enum):
-    SCAN = "scan"
-    PLAYLIST = "playlist"
-    COMPARE = "compare"
+    SCAN = ("scan", "analyse the beets library with bliss")
+    PLAYLIST = ("playlist", "create playlist with bliss")
+    COMPARE = ("compare", "calculate distance between two songs, with bliss")
+
+    def __init__(self, cmd, desc):
+        self._value_ = cmd
+        self.desc = desc
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.value == other
+        elif isinstance(other, BlissCommand):
+            return self.value == other.value
+        return False
 
     def __str__(self):
-        return str(self.value)
+        return self.value
 
 
 class BlissifyPlugin(BeetsPlugin):
