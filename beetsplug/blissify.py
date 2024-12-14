@@ -119,6 +119,13 @@ Available subcommands:
             help="amount of weighted randomness",
         )
         parser.add_option(
+            "-q",
+            "--quiet",
+            action="store_true",
+            default=False,
+            help="quiet mode, don't ask for any input",
+        )
+        parser.add_option(
             "-s",
             "--seed",
             action="store_true",
@@ -291,10 +298,12 @@ Available subcommands:
             print("No matching songs found!")
             return
 
-        seed_song = self.select_song(results, page_size=6)
-        if seed_song is None:
-            print("Good bye")
-            return
+        if opts.quiet:
+            seed_song = results[0]
+        else:
+            seed_song = self.select_song(results, page_size=6)
+            if seed_song is None:
+                return
 
         music_library = lib.items()
         try:
