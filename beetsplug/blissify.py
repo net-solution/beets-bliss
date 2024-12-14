@@ -138,6 +138,13 @@ Available subcommands:
             default="",
             help='query the music library before making playlist (e.g. "^christmas")',
         )
+        parser.add_option(
+            "-v",
+            "--verbose",
+            action="store_true",
+            default=False,
+            help="verbose output",
+        )
         opts, sub_args = parser.parse_args(args)
         self.generate_playlist(lib, opts, sub_args)
 
@@ -318,9 +325,21 @@ Available subcommands:
             tree, seed_analysis, song_ids, opts.count, opts.threshold
         )
 
-        print("\nNearest songs:")
-        for song_id, distance in nearest_songs:
-            song = lib.get_item(song_id)
-            print(f"  * {song.artist:40} - {song.title:50} (dist: {distance})")
+        filename = "nearest_songs.txt"
+        with open(filename, "w") as file:
+            if opts.verbose:
+                print("\nNearest songs:")
+            for song_id, distance in nearest_songs:
+                song = lib.get_item(song_id)
+                output = (
+                    f"{song.artist:40} - {song.title:50} (dist: {distance})\n"
+                )
+
+                file.write(output)
+                if opts.verbose:
+                    print("\t> ", end="")
+                    print(output, end="")
+
+        print(f"Songs saved to {filename}")
 
         return
