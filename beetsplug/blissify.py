@@ -67,13 +67,15 @@ class BlissifyPlugin(BeetsPlugin):
         return [bliss_cmd]
 
     def bliss_handler(self, lib, opts, args):
+        help_message = f"""\
+Usage: beet bliss <subcommand> [options]
+
+Available subcommands:
+    {"\n    ".join(f"{cmd:12} - {cmd.desc}" for cmd in BlissCommand)}
+"""
+
         if not args:
-            raise UserError(f"""\
-    Usage: beet bliss <subcommand> [options]
-                
-    Available subcommands:
-    \t{"\n\t".join(str(cmd) for cmd in BlissCommand)}
-""")
+            raise UserError(help_message)
 
         args = decargs(args)
         subcommand = args[0]
@@ -87,12 +89,12 @@ class BlissifyPlugin(BeetsPlugin):
             case BlissCommand.COMPARE:
                 self.bliss_compare(lib, subcommand_args)
             case _:
-                raise UserError(f"Unknown subcommand: {subcommand}")
+                raise UserError(help_message)
 
     def bliss_scan(self, lib, args):
         parser = OptionParser(
             usage=f"beet bliss {BlissCommand.SCAN} [options]",
-            description="analyse the beets library with bliss",
+            description=BlissCommand.SCAN.desc,
         )
         parser.add_option(
             "-f",
@@ -108,7 +110,7 @@ class BlissifyPlugin(BeetsPlugin):
     def bliss_playlist(self, lib, args):
         parser = OptionParser(
             usage=f"beet bliss {BlissCommand.PLAYLIST} [options] <query>",
-            description="create playlist with bliss",
+            description=BlissCommand.PLAYLIST.desc,
         )
         parser.add_option(
             "-d",
@@ -142,7 +144,7 @@ class BlissifyPlugin(BeetsPlugin):
     def bliss_compare(self, lib, args):
         parser = OptionParser(
             usage=f"beet bliss {BlissCommand.COMPARE} [options] <query>",
-            description="calculate distance between two songs, with bliss",
+            description=BlissCommand.COMPARE.desc,
         )
         opts, sub_args = parser.parse_args(args)
         self.compare_songs(lib, opts, sub_args)
