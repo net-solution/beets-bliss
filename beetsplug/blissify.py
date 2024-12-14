@@ -309,7 +309,7 @@ class BlissifyPlugin(BeetsPlugin):
             if seed_song is None:
                 return
 
-        music_library = lib.items()
+        music_library = lib.items(opts.query)
         try:
             song_analysis = [
                 np.array(s.bliss_data.split(r"\␀"), dtype=float)
