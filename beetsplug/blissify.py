@@ -253,9 +253,12 @@ Available subcommands:
         sorted_distances = distances[sorted_order]
         sorted_indices = indices[sorted_order]
 
-        # find unique distances, aka compare each distance to the one before it, and if the difference is super tiny, then it is False
+        # find unique distances, aka compare each distance to the one before
+        # it, and if the difference is super tiny, then it is False
         unique_mask = np.diff(sorted_distances, prepend=-np.inf) > threshold
-        # this will also only keep distances above 0 (the seed song). maybe 0.0something small  to also count songs that are basically    the same
+        # this will also only keep distances above 0 (the seed song). maybe
+        # 0.0somethingsmall  to also count songs that are basically    the
+        # same
         unique_mask &= sorted_distances > 0.005
 
         unique_indices = sorted_indices[unique_mask]
