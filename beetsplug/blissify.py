@@ -66,12 +66,12 @@ class BlissifyPlugin(BeetsPlugin):
         return [bliss_cmd]
 
     def bliss_handler(self, lib, opts, args):
-        help_message = f"""\
-Usage: beet bliss <subcommand> [options]
-
-Available subcommands:
-    {"\n    ".join(f"{cmd:12} - {cmd.desc}" for cmd in BlissCommand)}
-"""
+        help_message = ""
+        help_message += "Usage: beet bliss <subcommand> [options]\n\n"
+        help_message += "Available subcommands:\n"
+        help_message += (
+            f"\t{'\n\t'.join(f'{cmd:12} - {cmd.desc}' for cmd in BlissCommand)}"
+        )
 
         if not args:
             raise UserError(help_message)
