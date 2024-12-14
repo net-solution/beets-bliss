@@ -279,19 +279,40 @@ class BlissifyPlugin(BeetsPlugin):
 
         return unique_indices, unique_distances
 
-    def get_nearest_songs(self, tree, query_vector, song_ids, k):
-        distances, indices = tree.query(query_vector, k=k, workers=-1)
+    def _get_nearest_songs(self, tree, seed_vector, k, rng=False):
+        """Return k indices of nearest songs to seed song."""
+        k_multiplier = 10 if rng else 1
+
+        distances, indices = tree.query(
+            seed_vector, k=k * k_multiplier, workers=-1
+        )
+
         unique_indices, unique_distances = self._deduplicate_mask(
             distances, indices
         )
 
         nearest_songs = np.column_stack((
-            song_ids[unique_indices],
+            unique_indices,
             unique_distances,
         ))
 
-        return nearest_songs[:k]
+        if rng:
+            # Weighted randomness:
+            #   - first invert the distance, (with tolerance to prevent
+            #   division by zero);
+            #   - then normalize the distances so they sum to 1 (allows them to
+            #   become probability weights)
+            weights = 1 / (unique_distances + 1e-5)
+            weights /= weights.sum()
 
+            # choose K songs from our song indices
+            weighted_indices = np.random.choice(
+                unique_indices.shape[0], size=k, replace=False, p=weights
+            )
+
+            nearest_songs = nearest_songs[weighted_indices]
+
+        return nearest_songs
 
     def _generate_playlist(self, lib: Library, opts, args):
         """Generate a playlist of similar songs."""
@@ -342,7 +363,8 @@ class BlissifyPlugin(BeetsPlugin):
         with open(filename, "w") as file:
             if opts.verbose:
                 print("\nNearest songs:")
-            for song_id, distance in nearest_songs:
+            for idx, distance in nearest_songs:
+                song_id = int(song_ids[int(idx)])
                 song = lib.get_item(song_id)
                 output = (
                     f"{song.artist:40} - {song.title:50} (dist: {distance})\n"
