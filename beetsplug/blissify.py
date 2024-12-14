@@ -2,7 +2,6 @@
 blissify-rs.
 """
 
-import pickle
 from concurrent.futures import ProcessPoolExecutor
 from enum import Enum
 from optparse import OptionParser
@@ -240,42 +239,31 @@ Available subcommands:
 
         return None
 
-    def save_kdtree(self, tree, filepath):
-        with open(filepath, "wb") as f:
-            pickle.dump(tree, f)
+    def _deduplicate_mask(self, distances, indices, threshold=1e-9):
+        """Return indices of unique distances (within threshold)."""
+        # sort distances/indices arrays by distance
+        sorted_order = np.argsort(distances)
+        sorted_distances = distances[sorted_order]
+        sorted_indices = indices[sorted_order]
 
-    def get_nearest_songs(self, tree, query_vector, song_ids, k, threshold):
-        nearest_songs = []
-        offset = 0  # offset for already processed indices
-        max_requested = k
+        # find unique distances, aka compare each distance to the one before it, and if the difference is super tiny, then it is False
+        unique_mask = np.diff(sorted_distances, prepend=-np.inf) > threshold
+        # this will also only keep distances above 0 (the seed song). maybe 0.0something small  to also count songs that are basically    the same
+        unique_mask &= sorted_distances > 0.005
 
-        if threshold:  # get a few more results if using threshold
-            k = int(k * 1.5)
+        unique_indices = sorted_indices[unique_mask]
+        unique_distances = sorted_distances[unique_mask]
 
-        # but still using while loop, in case we didnt get enough extra
-        while len(nearest_songs) < max_requested:
-            distances, indices = tree.query(
-                query_vector, k=k + offset, workers=-1
-            )
+        return unique_indices, unique_distances
 
-            # skip the already processed songs
-            indices = indices[offset:]
-            distances = distances[offset:]
+    def get_nearest_songs(self, tree, query_vector, song_ids, k):
+        distances, indices = tree.query(query_vector, k=k, workers=-1)
+        unique_indices, unique_distances = self._deduplicate_mask(
+            distances, indices
+        )
 
-            new_songs = [
-                (song_ids[idx], distances[i])
-                for i, idx in enumerate(indices)
-                if distances[i] > threshold
-            ]
 
-            nearest_songs.extend(new_songs)
-            offset += k
-
-            # exit if we exhaust all neighbors
-            if len(indices) == 0:
-                break
-
-        return nearest_songs[:max_requested]
+        return nearest_songs[:k]
 
     def compare_songs(self, lib, opts, args):
         results = list(lib.items(input("Enter a query: ")))
@@ -322,7 +310,7 @@ Available subcommands:
         tree = KDTree(song_analysis)
 
         nearest_songs = self.get_nearest_songs(
-            tree, seed_analysis, song_ids, opts.count, opts.threshold
+            tree, seed_analysis, song_ids, opts.count
         )
 
         filename = "nearest_songs.txt"
