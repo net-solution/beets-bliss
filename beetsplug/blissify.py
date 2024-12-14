@@ -274,9 +274,9 @@ Available subcommands:
         return nearest_songs[:k]
 
     def compare_songs(self, lib, opts, args):
-        results = list(lib.items(input("Enter a query: ")))
+        results = list(lib.items(input("Query for first song: ")))
         song1 = self.select_song(results, page_size=6)
-        results = list(lib.items(input("Enter a query: ")))
+        results = list(lib.items(input("\nQuery for second song: ")))
         song2 = self.select_song(results, page_size=6)
 
         if song1 is not None and song2 is not None:
