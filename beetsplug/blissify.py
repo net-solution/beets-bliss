@@ -262,10 +262,6 @@ Available subcommands:
             distances, indices
         )
 
-        # nearest_songs = [
-        #     (song_ids[idx], unique_distances[i])
-        #     for i, idx in enumerate(unique_indices)
-        # ]
         nearest_songs = np.column_stack((
             song_ids[unique_indices],
             unique_distances,
