@@ -319,15 +319,14 @@ class BlissifyPlugin(BeetsPlugin):
             print("ERROR: Missing bliss data, please (re)analyse the library!")
             return None
 
-        rng = np.random.default_rng()
-
-        # get data of seed song separately, slight PERTURBance
         seed_analysis = np.array(seed_song.bliss_data.split(r"\␀"), dtype=float)
 
-        sigma = opts.randomness
-        seed_analysis = seed_analysis + np.random.normal(
-            0, sigma, size=seed_analysis.shape
-        )
+        # perturb seed data
+        # rng = np.random.default_rng()
+        # sigma = opts.randomness
+        # seed_analysis = seed_analysis + np.random.normal(
+        #     0, sigma, size=seed_analysis.shape
+        # )
 
         # Store song ids in same order as analysis vectors
         song_ids = np.array([s.id for s in music_library])
