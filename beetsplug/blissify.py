@@ -303,7 +303,7 @@ class BlissifyPlugin(BeetsPlugin):
         # this will also only keep distances above 0 (the seed song). maybe
         # 0.0somethingsmall  to also count songs that are basically    the
         # same
-        unique_mask &= sorted_distances > 0.005
+        # unique_mask &= sorted_distances > 0.005
 
         unique_indices = sorted_indices[unique_mask]
         unique_distances = sorted_distances[unique_mask]
