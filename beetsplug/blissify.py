@@ -180,10 +180,8 @@ class BlissifyPlugin(BeetsPlugin):
         self._compare_songs(lib, opts, sub_args)
 
     def _compare_songs(self, lib, opts, args):
-        results = list(lib.items(input("Query for first song: ")))
-        song1 = self._select_song(results, page_size=6)
-        results = list(lib.items(input("\nQuery for second song: ")))
-        song2 = self._select_song(results, page_size=6)
+        song1 = self._select_song(lib, page_size=6)
+        song2 = self._select_song(lib, page_size=6)
 
         if song1 is not None and song2 is not None:
             song1_data = np.array(song1.bliss_data.split(r"\␀"), dtype=float)
@@ -231,7 +229,18 @@ class BlissifyPlugin(BeetsPlugin):
 
         print("Analysis complete!")
 
-    def _select_song(self, results, page_size=10):
+    def _select_song(
+        self, lib: Library, results=None, page_size=10, first=False
+    ):
+        if first:
+            print("Enter a number to choose a song, or pick an option:")
+            print("[M]ore songs, [S]earch, [H]elp, [Q]uit, [#] song number\n")
+            print(f"{'#':>4} | {'Artist':24} | {'Album':16} | Title")
+            print(f"{'=' * 4}=|={'=' * 24}=|={'=' * 16}=|={'=' * 32}=")
+
+        if results is None:
+            results = list(lib.items(input("Enter search query: ")))
+
         current_page = 0
         total_pages = (len(results) + page_size - 1) // page_size
 
@@ -239,40 +248,45 @@ class BlissifyPlugin(BeetsPlugin):
             start = current_page * page_size
             end = min(start + page_size, len(results))
 
-            print(f"\nPage {current_page + 1} of {total_pages}")
             for i, item in enumerate(results[start:end], start=start):
-                item_id = f"[ID: {item.id:_>6}]"
                 print(
-                    f"{i + 1}: {item.artist:40} - {item.title:50} {item_id:>18}"
+                    f"{(i + 1):>4} | {item.artist[:24]:24} | {item.album[:16]:16} | {item.title[:32]:32}"
                 )
 
-            if len(results) > 1:
-                print("\nEnter a number to choose a song, or pick an option")
-                choice = input_options(
-                    "npq",
-                    numrange=(start + 1, end),
-                    default=start + 1,
-                    prompt=f"[N]ext page, [P]revious page, [Q]uit, ({start + 1}-{end}):",
-                )
-            else:
-                choice = 1
+            choice = input_options(
+                "mshq",
+                numrange=(1, end),
+                default=start + 1,
+                prompt="\nChoice:",
+            )
 
-            if isinstance(choice, int) and start + 1 <= choice <= end:
+            if isinstance(choice, int) and 1 <= choice <= end:
                 result_index = choice - 1
 
                 selection = results[result_index]
                 print(f"\nSelected: {selection.artist} - {selection.title}")
+
                 confirm = input_yn("Are you sure? [Y/n]:")
 
                 if confirm:
                     return selection
-
-            elif choice == "p":
-                current_page = (current_page - 1) % total_pages
-            elif choice == "n":
-                current_page = (current_page + 1) % total_pages
+            elif choice == "m":
+                current_page += 1
+            elif choice == "h":
+                print("===================================================")
+                print("Options:")
+                print()
+                print("[M]ore songs - print next batch of songs")
+                print("[S]earch     - enter a new search query for songs")
+                print("[H]elp       - print available options")
+                print("[Q]uit       - quit beets")
+                print("===================================================")
+                print()
             elif choice == "q":
                 break
+
+            elif choice == "s":
+                return self._select_song(lib, page_size=page_size)
 
         return None
 
@@ -396,7 +410,7 @@ class BlissifyPlugin(BeetsPlugin):
         if opts.quiet:
             seed_song = results[0]
         else:
-            seed_song = self._select_song(results, page_size=6)
+            seed_song = self._select_song(lib, results, page_size=6, first=True)
             if seed_song is None:
                 return
 
