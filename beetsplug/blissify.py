@@ -136,11 +136,18 @@ class BlissifyPlugin(BeetsPlugin):
             (walk through the similar songs)",
         )
         parser.add_option(
+            "-s",
+            "--shuffle",
+            action="store_true",
+            default=False,
+            help="use weighted randomness to 'shuffle' the mix. helps give unique playlist each time while still being similar songs",
+        )
+        parser.add_option(
             "-r",
             "--randomness",
             type="float",
-            default=0.1,
-            help="amount of weighted randomness",
+            default=0,
+            help="add randomness",
         )
         parser.add_option(
             "-n",
@@ -424,11 +431,13 @@ class BlissifyPlugin(BeetsPlugin):
                 seed_analysis,
                 opts.count,
                 opts.randomness,
-                bool(opts.randomness),
+                opts.shuffle,
             )
         else:
             nearest_songs = self._get_nearest_songs(
-                tree, seed_analysis, opts.count, opts.randomness
+                tree, seed_analysis, opts.count, opts.shuffle
+            )
+
         # Open file for saving
         if self.config["save_playlist"]:
             filename = "nearest_songs.m3u"
