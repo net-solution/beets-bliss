@@ -2,14 +2,23 @@
 blissify-rs.
 """
 
+from binascii import hexlify
 from concurrent.futures import ProcessPoolExecutor
 from enum import Enum
 from optparse import OptionParser
 
 import numpy as np
+import requests
 from beets.library import Library
 from beets.plugins import BeetsPlugin
-from beets.ui import Subcommand, UserError, decargs, input_options, input_yn
+from beets.ui import (
+    Subcommand,
+    UserError,
+    config,
+    decargs,
+    input_options,
+    input_yn,
+)
 from bliss_audio import Song
 from scipy.spatial import KDTree
 from tqdm import tqdm
@@ -420,24 +429,89 @@ class BlissifyPlugin(BeetsPlugin):
         else:
             nearest_songs = self._get_nearest_songs(
                 tree, seed_analysis, opts.count, opts.randomness
+        # Open file for saving
+        if self.config["save_playlist"]:
+            filename = "nearest_songs.m3u"
+            file = open(filename, "w")
+
+        subsonic_url = config["subsonic"]["url"]
+        subsonic_user = config["subsonic"]["user"].as_str()
+        subsonic_pass = config["subsonic"]["pass"].as_str()
+
+        encpass = hexlify(subsonic_pass.encode()).decode()
+        payload = {
+            "u": subsonic_user,
+            "p": f"enc:{encpass}",
+            "v": "1.15.0",
+            "c": "beets",
+            "f": "json",
+        }
+        subsonic_endpoint = f"{subsonic_url}/rest/savePlayQueue"
+
+        # clear queue
+        response = self.send_request(subsonic_endpoint, payload)
+
+        subsonic_ids = []
+
+        print("\nNearest songs:\n")
+        print(f"{'Artist':35} | {'Song':35} | Distance")
+        print(f"{'=' * 35}=|={'=' * 35}=|==========")
+
+        # Process nearest songs (print/save/queue)
+        # seed_song_id = int(song_ids[int()])
+        for idx, distance in nearest_songs:
+            song_id = int(song_ids[int(idx)])
+            song = lib.get_item(song_id)
+
+            output = (
+                f"{song.artist[:35]:35} | {song.title[:35]:35} | {distance:.3f}"
             )
 
-        filename = "nearest_songs.txt"
-        with open(filename, "w") as file:
-            if opts.verbose:
-                print("\nNearest songs:")
-            for idx, distance in nearest_songs:
-                song_id = int(song_ids[int(idx)])
-                song = lib.get_item(song_id)
-                output = (
-                    f"{song.artist:40} - {song.title:50} (dist: {distance})\n"
-                )
+            subsonic_ids.append(song.subsonic_id)
 
+            if self.config["save_playlist"]:
                 file.write(output)
-                if opts.verbose:
-                    print("\t> ", end="")
-                    print(output, end="")
 
-        print(f"Songs saved to {filename}")
+            print(output)
+
+        payload["id"] = subsonic_ids
+
+        response = self.send_request(subsonic_endpoint, payload)
+        if response:
+            print("Queue sent to subsonic server")
+        else:
+            print("Failed to send queue!")
+
+        if self.config["save_playlist"]:
+            file.close()
+            print(f"Songs saved to {filename}")
 
         return
+
+    def send_request(self, url, payload):
+        try:
+            response = requests.get(url, params=payload, timeout=5.0)
+            response.raise_for_status()
+
+            json_response = response.json()
+
+            if "subsonic-response" not in json_response:
+                self._log.error("Invalid response: missing 'subsonic-response'")
+                return None
+
+            subsonic_response = json_response["subsonic-response"]
+            if subsonic_response["status"] == "ok":
+                return subsonic_response
+            else:
+                error = subsonic_response.get("error", {})
+                error_msg = error.get("message", "Unknown error")
+                error_code = error.get("code", "Unknown code")
+                self._log.error(f"Subsonic error {error_code}: {error_msg}")
+                return None
+
+        except requests.exceptions.RequestException as error:
+            self._log.error(f"Request failed: {error}")
+            return None
+        except ValueError as error:
+            self._log.error(f"Failed to parse JSON: {error}")
+            return None
