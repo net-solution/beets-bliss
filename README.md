@@ -1,3 +1,7 @@
+**Note:** i plan to review this project soon (havent worked on it since
+december), for now some things might be broken or missing (i.e i dont think it
+can save playlist files yet)
+
 # beets bliss plugin
 
 beets-bliss is a plugin for [beets](https://github.com/beetbox/beets) that
@@ -12,7 +16,7 @@ inspired by and based on [blissify-rs](https://github.com/polochon-street/blissi
 Install the plugin with:
 
 ```
-$ pip install -U --force-reinstall --no-deps git+https://github.com/net-solution/beets-bliss.git
+pip install -U --force-reinstall --no-deps git+https://github.com/net-solution/beets-bliss.git
 ```
 
 This should also install its dependencies (`tqdm`, `bliss-audio`)
@@ -22,7 +26,7 @@ This should also install its dependencies (`tqdm`, `bliss-audio`)
 To analyse the music library, run
 
 ```
-$ beet bliss scan
+beet bliss scan
 ```
 
 This scans the database for new songs to analyse, and stores the computed data
@@ -34,7 +38,7 @@ everything it has already analysed. If you need to re-analyse the library for
 some reason, use the `-f` (or `--force`) option:
 
 ```
-$ beet bliss scan -f
+beet bliss scan -f
 ```
 
 ## make playlists
@@ -42,7 +46,7 @@ $ beet bliss scan -f
 Generate a playlist with the `playlist` subcommand:
 
 ```
-$ beet bliss playlist [options] <query>
+beet bliss playlist [options] <query>
 ```
 
 This will prompt you to pick a song, from which it will find the top similar
